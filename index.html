@@ -413,7 +413,7 @@
     <section class="px-6 py-12">
       <div class="scroll-fade glass mx-auto max-w-2xl p-8 text-center">
         <p style="color:#7a5a6a;font-size:1.05rem">Time since I met you</p>
-        <p style="color:#b090a0;font-size:.85rem;margin-top:.25rem">Since 11 November 2025</p>
+        <p style="color:#b090a0;font-size:.85rem;margin-top:.25rem">Since 10 November 2025</p>
         <div style="display:flex;justify-content:center;gap:2rem;margin-top:1.5rem;flex-wrap:wrap">
           <div>
             <div class="timer-digit" id="t-days">0</div>
@@ -810,7 +810,7 @@
 
       /* ─── Timer ─── */
       function updateTimer() {
-        const start = new Date("2025-11-11T00:00:00").getTime();
+        const start = new Date("2025-11-10T00:00:00").getTime();
         const diff = Math.max(Date.now() - start, 0);
         const days = Math.floor(diff / 86400000);
         const hours = Math.floor((diff % 86400000) / 3600000);
