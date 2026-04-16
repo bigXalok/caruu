@@ -4,61 +4,496 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>For You</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              display: ["Cormorant Garamond", "serif"],
+              body: ["DM Sans", "sans-serif"]
+            },
             colors: {
-              rose: "#ff7fb0",
-              lilac: "#e9dcff",
-              mist: "#fff6fb"
-            },
-            boxShadow: {
-              glow: "0 0 24px rgba(255, 127, 176, 0.45)",
-              soft: "0 20px 60px rgba(119, 80, 130, 0.14)"
-            },
-            backdropBlur: {
-              xs: "2px"
-            },
-            animation: {
-              shimmer: "shimmer 8s ease-in-out infinite"
-            },
-            keyframes: {
-              shimmer: {
-                "0%, 100%": { transform: "translateX(-8%)" },
-                "50%": { transform: "translateX(8%)" }
-              }
+              petal: "#f9a8c9",
+              rose: "#e8598a",
+              blush: "#fce7f0",
+              orchid: "#c084b8",
+              mist: "#fff8fc",
+              plum: "#7c3a6e"
             }
           }
         }
       };
     </script>
-    <script type="module">
-      import React, { useEffect, useMemo, useRef, useState } from "https://esm.sh/react@18.3.1";
-      import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
-      import { motion, AnimatePresence } from "https://esm.sh/framer-motion@11.11.9";
-      import htm from "https://esm.sh/htm@3.1.1";
 
-      const html = htm.bind(React.createElement);
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: #fff8fc;
+        overflow-x: hidden;
+      }
+      h1, h2, h3 {
+        font-family: "Cormorant Garamond", serif;
+      }
 
+      /* ── Background mesh ── */
+      .bg-mesh {
+        position: fixed; inset: 0; z-index: -30; pointer-events: none;
+        background:
+          radial-gradient(ellipse 70% 55% at 15% 10%, rgba(249,168,201,0.38), transparent),
+          radial-gradient(ellipse 55% 45% at 85% 8%,  rgba(192,132,184,0.32), transparent),
+          radial-gradient(ellipse 60% 50% at 50% 95%, rgba(252,231,240,0.55), transparent),
+          #fff8fc;
+      }
+
+      /* ── Grain overlay ── */
+      .grain {
+        position: fixed; inset: 0; z-index: -25; pointer-events: none; opacity: .045;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+        background-size: 180px;
+      }
+
+      /* ── Glass card ── */
+      .glass {
+        background: rgba(255,255,255,0.62);
+        border: 1px solid rgba(255,255,255,0.55);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border-radius: 2rem;
+        box-shadow: 0 24px 72px rgba(160, 60, 120, 0.09), 0 2px 8px rgba(160,60,120,0.05);
+      }
+
+      /* ── Floating hearts ── */
+      @keyframes floatHeart {
+        0%   { transform: translateY(110vh) scale(0.7); opacity: 0.1; }
+        15%  { opacity: 0.45; }
+        85%  { opacity: 0.3; }
+        100% { transform: translateY(-15vh) scale(1.05); opacity: 0; }
+      }
+      .heart {
+        position: fixed; pointer-events: none; z-index: -10;
+        font-size: 1.1rem;
+        color: rgba(232, 89, 138, 0.35);
+        animation: floatHeart linear infinite;
+      }
+
+      /* ── Shimmer on glass ── */
+      @keyframes shimmer {
+        0%   { transform: translateX(-120%) skewX(-20deg); }
+        100% { transform: translateX(220%) skewX(-20deg); }
+      }
+      .shimmer-wrap { position: relative; overflow: hidden; }
+      .shimmer-wrap::after {
+        content: "";
+        position: absolute; inset: 0;
+        background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.5) 50%, transparent 80%);
+        animation: shimmer 6s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      /* ── Reveal animation ── */
+      @keyframes revealUp {
+        from { opacity: 0; transform: translateY(38px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .reveal { opacity: 0; }
+      .revealed { animation: revealUp .85s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+
+      /* ── YES button ── */
+      .yes-btn {
+        position: relative;
+        padding: .6rem 1.8rem;
+        border-radius: 9999px;
+        font-size: .875rem;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform .2s, box-shadow .2s;
+        overflow: visible;
+        border: 1.5px solid #e8598a;
+        background: white;
+        color: #7c3a6e;
+      }
+      .yes-btn:hover { transform: scale(1.09); }
+      .yes-btn.clicked {
+        background: linear-gradient(135deg, #e8598a, #c084b8);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 0 28px rgba(232, 89, 138, 0.55), 0 0 60px rgba(192,132,184,0.28);
+      }
+
+      /* ── NO button ── */
+      .no-btn {
+        padding: .6rem 1.8rem;
+        border-radius: 9999px;
+        font-size: .875rem;
+        border: 1.5px solid #f0c0d8;
+        background: white;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: transform .18s;
+        position: relative;
+      }
+
+      /* ── Burst particles ── */
+      @keyframes burst {
+        0%   { opacity: 1; transform: translate(var(--tx), var(--ty)) scale(0.4) rotate(var(--tr)); }
+        60%  { opacity: 1; }
+        100% { opacity: 0; transform: translate(calc(var(--tx)*2.2), calc(var(--ty)*2.2)) scale(0) rotate(calc(var(--tr)*2)); }
+      }
+      .burst-particle {
+        position: absolute;
+        top: 50%; left: 50%;
+        pointer-events: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        animation: burst var(--dur) cubic-bezier(0.17, 0.89, 0.32, 1.25) forwards;
+        z-index: 200;
+      }
+
+      /* ── Ripple ring ── */
+      @keyframes rippleRing {
+        0%   { transform: translate(-50%,-50%) scale(0); opacity: .8; }
+        100% { transform: translate(-50%,-50%) scale(4.5); opacity: 0; }
+      }
+      .ripple-ring {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        border: 2px solid rgba(232, 89, 138, 0.6);
+        pointer-events: none;
+        animation: rippleRing .9s ease-out forwards;
+        z-index: 100;
+      }
+      .ripple-ring.r2 { animation-delay: .18s; border-color: rgba(192,132,184,0.5); }
+      .ripple-ring.r3 { animation-delay: .36s; border-color: rgba(249,168,201,0.4); }
+
+      /* ── Full-screen confetti overlay ── */
+      #confetti-canvas {
+        position: fixed; inset: 0; z-index: 9999;
+        pointer-events: none;
+      }
+
+      /* ── Memory card ── */
+      .memory-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 16px 40px rgba(160,60,120,0.09);
+        cursor: pointer;
+        transition: transform .4s cubic-bezier(0.23,1,0.32,1), box-shadow .4s;
+      }
+      .memory-card:hover {
+        transform: translateY(-8px) scale(1.015);
+        box-shadow: 0 28px 64px rgba(160,60,120,0.15);
+      }
+      .memory-card .shine {
+        position: absolute; inset: 0;
+        background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+        transform: translateX(-130%);
+        transition: transform .7s ease;
+        pointer-events: none;
+      }
+      .memory-card:hover .shine { transform: translateX(130%); }
+      .memory-card img {
+        width: 100%; height: 220px; object-fit: cover;
+        transition: transform .6s cubic-bezier(0.23,1,0.32,1);
+      }
+      .memory-card:hover img { transform: scale(1.07); }
+
+      /* ── Typewriter cursor ── */
+      .cursor::after {
+        content: "▌";
+        animation: blink .65s step-end infinite;
+        color: #e8598a;
+        margin-left: 1px;
+      }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      /* ── Heart toggle ── */
+      .heart-toggle {
+        font-size: 3.5rem;
+        cursor: pointer;
+        transition: transform .25s cubic-bezier(0.34,1.56,0.64,1);
+        display: inline-block;
+        line-height: 1;
+      }
+      .heart-toggle:hover { transform: scale(1.2); }
+      .heart-toggle.active { transform: scale(1.35); filter: drop-shadow(0 0 12px rgba(232,89,138,0.6)); }
+
+      /* ── Music btn ── */
+      .music-btn {
+        background: linear-gradient(135deg, #1a1a2e, #2d1b3d);
+        color: white;
+        padding: .8rem 2rem;
+        border-radius: 9999px;
+        font-size: .9rem;
+        cursor: pointer;
+        transition: transform .2s, box-shadow .2s;
+        font-family: "DM Sans", sans-serif;
+      }
+      .music-btn:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+
+      /* ── CTA btn ── */
+      .cta-btn {
+        display: inline-block;
+        padding: .9rem 2.4rem;
+        border-radius: 9999px;
+        background: linear-gradient(135deg, #e8598a, #c084b8);
+        color: white;
+        font-family: "DM Sans", sans-serif;
+        font-size: .95rem;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 0 28px rgba(232,89,138,0.4);
+        transition: transform .22s, box-shadow .22s;
+        border: none;
+      }
+      .cta-btn:hover { transform: scale(1.06); box-shadow: 0 0 42px rgba(232,89,138,0.55); }
+
+      /* ── Modal ── */
+      .modal-overlay {
+        position: fixed; inset: 0; z-index: 9000;
+        background: rgba(15,5,20,0.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 1.5rem;
+        opacity: 0; pointer-events: none;
+        transition: opacity .3s;
+      }
+      .modal-overlay.open { opacity: 1; pointer-events: all; }
+      .modal-box {
+        background: rgba(255,255,255,0.95);
+        border-radius: 2rem;
+        border: 1px solid rgba(255,255,255,0.6);
+        max-width: 52rem; width: 100%;
+        overflow: hidden;
+        transform: translateY(30px) scale(.96);
+        transition: transform .32s cubic-bezier(0.23,1,0.32,1);
+        box-shadow: 0 40px 100px rgba(100,30,80,0.25);
+      }
+      .modal-overlay.open .modal-box { transform: translateY(0) scale(1); }
+
+      /* ── Scroll animations ── */
+      .scroll-fade { opacity: 0; transform: translateY(36px); transition: opacity .85s cubic-bezier(0.23,1,0.32,1), transform .85s cubic-bezier(0.23,1,0.32,1); }
+      .scroll-fade.visible { opacity: 1; transform: translateY(0); }
+
+      /* ── Timer ── */
+      .timer-digit {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 2.8rem;
+        font-weight: 300;
+        color: #7c3a6e;
+      }
+
+      /* ── Decorative divider ── */
+      .petal-divider {
+        text-align: center;
+        color: rgba(232,89,138,0.4);
+        font-size: 1.2rem;
+        letter-spacing: .5rem;
+        margin: 0 auto;
+      }
+
+      /* ── All-yes celebration ── */
+      @keyframes pulseGlow {
+        0%,100% { box-shadow: 0 0 30px rgba(232,89,138,0.4); }
+        50%      { box-shadow: 0 0 70px rgba(232,89,138,0.75); }
+      }
+      .all-yes-glow { animation: pulseGlow 2s ease-in-out infinite; }
+
+      /* ── Question card ── */
+      .q-card {
+        border-radius: 1.25rem;
+        border: 1px solid rgba(240,192,216,0.5);
+        background: rgba(255,255,255,0.65);
+        padding: 1.25rem;
+        backdrop-filter: blur(8px);
+        transition: border-color .3s, background .3s;
+      }
+      .q-card.answered {
+        border-color: rgba(232,89,138,0.35);
+        background: rgba(252,231,240,0.45);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="bg-mesh"></div>
+    <div class="grain"></div>
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Floating hearts injected by JS -->
+    <div id="hearts-container"></div>
+
+    <!-- Hidden YouTube audio -->
+    <iframe id="yt-audio"
+      src="https://www.youtube.com/embed/cYOV5i85fsw?enablejsapi=1&version=3&autoplay=1&mute=0"
+      allow="autoplay; encrypted-media"
+      style="position:absolute;width:0;height:0;z-index:-50;opacity:0"
+      title="youtube-audio">
+    </iframe>
+
+    <!-- ════════════════════ HERO ════════════════════ -->
+    <section class="relative flex min-h-screen items-center justify-center px-6 py-16">
+      <div id="hero-card" class="reveal relative mx-auto max-w-3xl w-full">
+        <div style="position:absolute;inset:-1.5rem;border-radius:2.5rem;background:linear-gradient(135deg,rgba(249,168,201,0.35),rgba(192,132,184,0.3));filter:blur(40px);z-index:-1"></div>
+        <div class="glass shimmer-wrap p-10 text-center md:p-16">
+          <p style="font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:#c084b8;margin-bottom:1.2rem">For The Girl I Love</p>
+          <h1 style="font-size:clamp(2rem,6vw,4rem);font-weight:300;color:#1a0a14;line-height:1.15;margin-bottom:1.5rem">
+            I messed up…<br>
+            <em style="color:#e8598a">and I know it hurt you.</em>
+          </h1>
+          <p style="color:#5a3a4a;line-height:1.85;font-size:1.05rem;max-width:34rem;margin:0 auto 2.5rem">
+            I've been thinking about what I said, and I regret it.<br>
+            You didn't deserve that —<br>
+            I just want a chance to say this properly.
+          </p>
+          <button class="cta-btn" onclick="document.getElementById('memory-lane').scrollIntoView({behavior:'smooth'})">
+            Please hear me out ↓
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════ MEMORY LANE ════════════════════ -->
+    <section id="memory-lane" class="mx-auto max-w-6xl px-6 py-20">
+      <div class="scroll-fade text-center mb-12">
+        <p class="petal-divider mb-4">✦ ✦ ✦</p>
+        <h2 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:300;color:#1a0a14">Memory Lane</h2>
+        <p style="color:#7a5a6a;margin-top:.75rem;max-width:34rem;margin-left:auto;margin-right:auto;line-height:1.75">
+          Every photo reminds me of how much warmth you bring into my life, even across miles.
+        </p>
+      </div>
+      <div id="photo-grid" class="grid gap-5" style="grid-template-columns: repeat(auto-fill,minmax(280px,1fr))">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <!-- ════════════════════ APOLOGY ════════════════════ -->
+    <section class="px-6 py-20">
+      <div class="scroll-fade glass mx-auto max-w-3xl p-8 md:p-14">
+        <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:300;color:#1a0a14;text-align:center;margin-bottom:2rem">I know I hurt you</h2>
+        <pre id="typewriter-text" class="cursor" style="white-space:pre-wrap;font-family:'DM Sans',sans-serif;font-size:1.05rem;line-height:1.9;color:#4a2a3a"></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════ QUESTIONS ════════════════════ -->
+    <section class="px-6 py-20" id="questions-section">
+      <div class="scroll-fade glass mx-auto max-w-3xl p-8 md:p-12">
+        <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:300;color:#1a0a14;text-align:center;margin-bottom:2.5rem">Can We Try Again?</h2>
+        <div id="questions-list" style="display:flex;flex-direction:column;gap:1.25rem">
+          <!-- Injected by JS -->
+        </div>
+        <div id="all-yes-msg" style="display:none;margin-top:2rem;text-align:center">
+          <div class="glass all-yes-glow" style="padding:1.5rem 2rem;border-radius:1.5rem;background:linear-gradient(135deg,rgba(252,231,240,0.8),rgba(240,220,255,0.8))">
+            <p style="font-size:1.8rem">💖</p>
+            <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#7c3a6e;margin-top:.5rem">You said yes to all of them.</p>
+            <p style="color:#5a3a4a;margin-top:.4rem;font-size:.95rem">That means the world to me. I promise I won't let you down.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════ MUSIC ════════════════════ -->
+    <section class="px-6 py-12">
+      <div class="scroll-fade glass mx-auto max-w-3xl p-8" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1.5rem">
+        <div>
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:400;color:#1a0a14">Our song, while you read</h3>
+          <p style="color:#7a5a6a;margin-top:.4rem;font-size:.9rem">Play or pause whenever you want.</p>
+        </div>
+        <button class="music-btn" id="music-toggle-btn">⏸ Pause Music</button>
+      </div>
+    </section>
+
+    <!-- ════════════════════ TIMER ════════════════════ -->
+    <section class="px-6 py-12">
+      <div class="scroll-fade glass mx-auto max-w-2xl p-8 text-center">
+        <p style="color:#7a5a6a;font-size:1.05rem">Time since I met you</p>
+        <p style="color:#b090a0;font-size:.85rem;margin-top:.25rem">Since 11 November 2025</p>
+        <div style="display:flex;justify-content:center;gap:2rem;margin-top:1.5rem;flex-wrap:wrap">
+          <div>
+            <div class="timer-digit" id="t-days">0</div>
+            <div style="font-size:.75rem;color:#b090a0;letter-spacing:.12em;text-transform:uppercase">Days</div>
+          </div>
+          <div>
+            <div class="timer-digit" id="t-hours">0</div>
+            <div style="font-size:.75rem;color:#b090a0;letter-spacing:.12em;text-transform:uppercase">Hours</div>
+          </div>
+          <div>
+            <div class="timer-digit" id="t-min">0</div>
+            <div style="font-size:.75rem;color:#b090a0;letter-spacing:.12em;text-transform:uppercase">Min</div>
+          </div>
+          <div>
+            <div class="timer-digit" id="t-sec">0</div>
+            <div style="font-size:.75rem;color:#b090a0;letter-spacing:.12em;text-transform:uppercase">Sec</div>
+          </div>
+        </div>
+        <p style="color:#9a6a7a;font-size:.9rem;margin-top:1.2rem" id="t-total"></p>
+      </div>
+    </section>
+
+    <!-- ════════════════════ CLOSING ════════════════════ -->
+    <section class="px-6 pb-28 pt-12">
+      <div class="scroll-fade glass mx-auto max-w-2xl p-10 text-center">
+        <p style="font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:#3a1a2a;line-height:1.85;max-width:30rem;margin:0 auto 2rem">
+          No matter what happens, I'll always choose you.<br>
+          I know I can't undo what I said…<br>
+          <em style="color:#e8598a">but I don't want one moment to erase everything we've built.</em>
+        </p>
+        <div style="display:flex;justify-content:center;gap:2.5rem;margin-top:1.5rem">
+          <button class="heart-toggle" id="heart1" onclick="toggleHeart(1)">♡</button>
+          <button class="heart-toggle" id="heart2" onclick="toggleHeart(2)" style="color:#c084b8">♡</button>
+        </div>
+        <div id="surprise1" style="display:none;margin-top:1.2rem">
+          <div style="background:rgba(252,231,240,0.75);border:1px solid rgba(240,192,216,0.5);border-radius:1.25rem;padding:1rem 1.5rem;max-width:28rem;margin:0 auto">
+            <p style="font-size:.95rem;color:#4a2a3a;line-height:1.75">I'm not asking you to forget everything. I'm asking for one honest chance to prove I can love you better than I argued with you.</p>
+          </div>
+        </div>
+        <div id="surprise2" style="display:none;margin-top:.8rem">
+          <div style="background:rgba(240,220,255,0.6);border:1px solid rgba(192,132,184,0.35);border-radius:1.25rem;padding:1rem 1.5rem;max-width:28rem;margin:0 auto">
+            <p style="font-size:.95rem;color:#4a2a3a;line-height:1.75">If you give me this chance, I won't waste it. I'll listen better, speak softer, and love you in the way you deserve.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════ PHOTO MODAL ════════════════════ -->
+    <div id="photo-modal" class="modal-overlay" onclick="closeModal()">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <button onclick="closeModal()" style="position:absolute;right:1rem;top:1rem;z-index:10;background:rgba(255,255,255,0.9);border:none;border-radius:9999px;padding:.4rem 1rem;font-size:.85rem;cursor:pointer;color:#5a3a4a">Close ✕</button>
+        <img id="modal-img" src="" alt="" style="max-height:70vh;width:100%;object-fit:contain;background:#f9f0f5" />
+        <p id="modal-caption" style="padding:1.2rem 1.5rem;text-align:center;font-size:1rem;color:#4a2a3a;line-height:1.7"></p>
+      </div>
+    </div>
+
+    <!-- ════════════════════ JS ════════════════════ -->
+    <script>
+      /* ─── Data ─── */
       const photos = [
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-1.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-2.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-3.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-4.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-5.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-6.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-7.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-8.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-9.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-10.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-11.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-12.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-13.png",
-        "https://raw.githubusercontent.com/bigXalok/caruu/main/images/photo-14.png"
+        "./images/photo-1.png",
+        "./images/photo-2.png",
+        "./images/photo-3.png",
+        "./images/photo-4.png",
+        "./images/photo-5.png",
+        "./images/photo-6.png",
+        "./images/photo-7.png",
+        "./images/photo-8.png",
+        "./images/photo-9.png",
+        "./images/photo-10.png",
+        "./images/photo-11.png",
+        "./images/photo-12.png",
+        "./images/photo-13.png",
+        "./images/photo-14.png"
       ];
-
       const captions = [
         "This one takes me back to when things felt simple and warm.",
         "This still feels like one of my favorite moments with you.",
@@ -70,12 +505,11 @@
         "I remember this and wish I had chosen patience over pride.",
         "No matter the distance, your presence still reaches me here.",
         "This moment reminds me what I never want to lose again.",
-        "I’d choose this peace with you over being right any day.",
+        "I'd choose this peace with you over being right any day.",
         "I never want one bad moment to erase everything good between us.",
         "If I could relive one memory right now, it would be this one with you.",
-        "I’m still here, still in love, still hoping we can fix this together."
+        "I'm still here, still in love, still hoping we can fix this together."
       ];
-
       const questions = [
         "Do you still love me a little bit?",
         "Can we fix this together?",
@@ -88,352 +522,270 @@
         "Would you let me take care of your heart better this time?",
         "Can we talk today and not let this silence grow bigger than us?"
       ];
-
       const apologyLines = [
-        "I know what I said hurt you, and I’ve been thinking about it a lot.",
+        "I know what I said hurt you, and I've been thinking about it a lot.",
         "Not to defend myself, but to understand how it must have felt for you.",
-        "You didn’t deserve those words especially not from me.",
-        "Being far from you is already difficult, and instead of making things better, I made it worse. I’m really sorry for that.",
-        "I miss us… the way we talk, the way things feel when we’re okay.",
-        "I don’t expect everything to be fixed instantly, but I do hope you’ll give me one chance to make it right.",
+        "You didn't deserve those words — especially not from me.",
+        "Being far from you is already difficult, and instead of making things better, I made it worse. I'm really sorry for that.",
+        "I miss us… the way we talk, the way things feel when we're okay.",
+        "I don't expect everything to be fixed instantly, but I do hope you'll give me one chance to make it right.",
         "Because what we have matters to me more than my ego ever should."
       ];
 
-      const sectionVariant = {
-        hidden: { opacity: 0, y: 40 },
-        show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.23, 1, 0.32, 1] } }
-      };
-
-      function useTypewriter(lines, speed = 34) {
-        const fullText = useMemo(() => lines.join("\n"), [lines]);
-        const [typed, setTyped] = useState("");
-        useEffect(() => {
-          let i = 0;
-          const timer = setInterval(() => {
-            i += 1;
-            setTyped(fullText.slice(0, i));
-            if (i >= fullText.length) clearInterval(timer);
-          }, speed);
-          return () => clearInterval(timer);
-        }, [fullText, speed]);
-        return typed;
+      /* ─── Floating hearts ─── */
+      const hc = document.getElementById("hearts-container");
+      for (let i = 0; i < 26; i++) {
+        const h = document.createElement("div");
+        h.className = "heart";
+        h.textContent = i % 3 === 0 ? "♥" : (i % 3 === 1 ? "♡" : "❤");
+        h.style.cssText = `
+          left:${(i * 11.3) % 98}vw;
+          font-size:${.7 + (i % 5) * .25}rem;
+          animation-duration:${13 + (i % 9)}s;
+          animation-delay:${i * .42}s;
+          color:rgba(232,89,138,${.12 + (i % 5) * .05});
+        `;
+        hc.appendChild(h);
       }
 
-      function useTimeSince(dateString) {
-        const [now, setNow] = useState(Date.now());
-        useEffect(() => {
-          const timer = setInterval(() => setNow(Date.now()), 1000);
-          return () => clearInterval(timer);
-        }, []);
-        const start = new Date(dateString).getTime();
-        const diff = Math.max(now - start, 0);
-        const totalHours = Math.floor(diff / (1000 * 60 * 60));
-        return {
-          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((diff / (1000 * 60)) % 60),
-          seconds: Math.floor((diff / 1000) % 60),
-          totalHours
-        };
+      /* ─── Hero reveal ─── */
+      setTimeout(() => {
+        const el = document.getElementById("hero-card");
+        el.classList.remove("reveal");
+        el.classList.add("revealed");
+      }, 80);
+
+      /* ─── Scroll reveals ─── */
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); io.unobserve(e.target); } });
+      }, { threshold: 0.18 });
+      document.querySelectorAll(".scroll-fade").forEach(el => io.observe(el));
+
+      /* ─── Photo grid ─── */
+      const grid = document.getElementById("photo-grid");
+      photos.forEach((p, i) => {
+        const card = document.createElement("div");
+        card.className = "memory-card scroll-fade";
+        card.style.transitionDelay = `${i * 60}ms`;
+        card.innerHTML = `
+          <div class="shine"></div>
+          <img src="${encodeURI(p)}" alt="${captions[i]}" loading="lazy" />
+          <p style="padding:.9rem 1rem;font-size:.875rem;color:#4a2a3a;line-height:1.6">${captions[i]}</p>
+        `;
+        card.onclick = () => openModal(p, captions[i]);
+        grid.appendChild(card);
+        io.observe(card);
+      });
+
+      /* ─── Photo modal ─── */
+      function openModal(src, cap) {
+        document.getElementById("modal-img").src = encodeURI(src);
+        document.getElementById("modal-caption").textContent = cap;
+        document.getElementById("photo-modal").classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+      function closeModal() {
+        document.getElementById("photo-modal").classList.remove("open");
+        document.body.style.overflow = "";
       }
 
-      function FloatingHearts() {
-        const items = Array.from({ length: 24 }, (_, i) => i);
-        return html`
-          <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-            ${items.map(
-              (i) => html`
-                <${motion.div}
-                  key=${i}
-                  className="absolute text-rose/25"
-                  initial=${{ y: "110vh", x: `${(i * 11) % 98}vw`, opacity: 0.12, scale: 0.7 }}
-                  animate=${{ y: "-20vh", opacity: [0.12, 0.45, 0.12], scale: [0.7, 1.1, 0.75] }}
-                  transition=${{ duration: 12 + (i % 9), repeat: Infinity, delay: i * 0.35, ease: "linear" }}
-                >
-                  ${i % 2 ? "♥" : "♡"}
-                </${motion.div}>
-              `
-            )}
+      /* ─── Typewriter ─── */
+      const fullText = apologyLines.join("\n");
+      const twEl = document.getElementById("typewriter-text");
+      let twIdx = 0;
+      const twObs = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          twObs.disconnect();
+          const interval = setInterval(() => {
+            twIdx++;
+            twEl.textContent = fullText.slice(0, twIdx);
+            if (twIdx >= fullText.length) {
+              clearInterval(interval);
+              twEl.classList.remove("cursor");
+            }
+          }, 33);
+        }
+      }, { threshold: 0.3 });
+      twObs.observe(twEl);
+
+      /* ─── Questions ─── */
+      const clickedSet = new Set();
+      const noPositions = questions.map(() => ({ x: 0, y: 0 }));
+      const qList = document.getElementById("questions-list");
+
+      questions.forEach((q, i) => {
+        const card = document.createElement("div");
+        card.className = "q-card scroll-fade";
+        card.id = `q-${i}`;
+        card.style.transitionDelay = `${i * 55}ms`;
+        card.innerHTML = `
+          <p style="color:#4a2a3a;font-size:.95rem;margin-bottom:.9rem">${i + 1}. ${q}</p>
+          <div style="display:flex;align-items:center;gap:1rem;position:relative">
+            <div style="position:relative;display:inline-block" id="yes-wrap-${i}">
+              <button class="yes-btn" id="yes-${i}" onclick="onYes(${i})">Yes ♡</button>
+            </div>
+            <button class="no-btn" id="no-${i}" onmouseenter="moveNo(${i})" ontouchstart="moveNo(${i})">No</button>
           </div>
         `;
+        qList.appendChild(card);
+        io.observe(card);
+      });
+
+      function onYes(idx) {
+        if (clickedSet.has(idx)) return;
+        clickedSet.add(idx);
+
+        const btn = document.getElementById(`yes-${idx}`);
+        btn.classList.add("clicked");
+        btn.textContent = "Yes 💖";
+
+        const card = document.getElementById(`q-${idx}`);
+        card.classList.add("answered");
+
+        // Ripple rings
+        const wrap = document.getElementById(`yes-wrap-${idx}`);
+        for (let r = 0; r < 3; r++) {
+          const ring = document.createElement("div");
+          ring.className = `ripple-ring${r > 0 ? " r" + (r+1) : ""}`;
+          wrap.appendChild(ring);
+          setTimeout(() => ring.remove(), 1200);
+        }
+
+        // Burst particles
+        const emojis = ["💖","✨","🌸","💝","🌷","💫","🩷","🎀"];
+        for (let j = 0; j < 22; j++) {
+          const p = document.createElement("div");
+          p.className = "burst-particle";
+          const angle = (j / 22) * Math.PI * 2;
+          const dist = 60 + Math.random() * 90;
+          const tx = Math.cos(angle) * dist;
+          const ty = Math.sin(angle) * dist;
+          p.style.cssText = `
+            --tx:${tx}px; --ty:${ty}px;
+            --tr:${(Math.random()-0.5)*360}deg;
+            --dur:${0.8 + Math.random() * 0.9}s;
+            font-size:${1.1 + Math.random() * 1}rem;
+          `;
+          p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          wrap.appendChild(p);
+          setTimeout(() => p.remove(), 2000);
+        }
+
+        // Confetti if all answered
+        if (clickedSet.size === questions.length) {
+          setTimeout(() => {
+            launchConfetti();
+            document.getElementById("all-yes-msg").style.display = "block";
+          }, 400);
+        }
       }
 
-      function GlassPanel({ className, children }) {
-        return html`<div className=${`rounded-3xl border border-white/45 bg-white/50 backdrop-blur-xl shadow-soft ${className || ""}"`}>${children}</div>`;
+      function moveNo(idx) {
+        const btn = document.getElementById(`no-${idx}`);
+        const x = Math.floor(Math.random() * 160) - 80;
+        const y = Math.floor(Math.random() * 80) - 40;
+        btn.style.transform = `translate(${x}px,${y}px)`;
+        btn.style.transition = "transform .25s cubic-bezier(0.34,1.56,0.64,1)";
       }
 
-      function MemoryCard({ photo, caption, idx, onOpen }) {
-        return html`
-          <${motion.div}
-            className="group relative overflow-hidden rounded-3xl border border-white/45 bg-white/65 shadow-soft backdrop-blur"
-            initial=${{ opacity: 0, y: 35, scale: 0.96 }}
-            whileInView=${{ opacity: 1, y: 0, scale: 1 }}
-            viewport=${{ once: true, amount: 0.2 }}
-            transition=${{ duration: 0.65, delay: idx * 0.09 }}
-            whileHover=${{ y: -8, rotateX: 2, rotateY: idx % 2 ? -2 : 2 }}
-            style=${{ transformStyle: "preserve-3d" }}
-            onClick=${() => onOpen(photo, caption)}
-          >
-            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"></div>
-            <img src=${encodeURI(photo)} alt=${caption} className="h-56 w-full object-cover transition duration-700 group-hover:scale-110" />
-            <p className="p-4 text-sm text-slate-700">${caption}</p>
-          </${motion.div}>
-        `;
+      /* ─── Confetti ─── */
+      function launchConfetti() {
+        const canvas = document.getElementById("confetti-canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const colors = ["#e8598a","#c084b8","#f9a8c9","#fce7f0","#7c3a6e","#fff","#ffb3d1"];
+        const pieces = Array.from({ length: 180 }, () => ({
+          x: Math.random() * canvas.width,
+          y: -20,
+          r: 4 + Math.random() * 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 4,
+          vy: 2.5 + Math.random() * 3.5,
+          spin: (Math.random() - 0.5) * 0.2,
+          angle: Math.random() * Math.PI * 2,
+          shape: Math.random() > 0.5 ? "rect" : "circle"
+        }));
+
+        let frame;
+        let t = 0;
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          pieces.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.angle += p.spin;
+            p.vy += 0.04;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = Math.max(0, 1 - t / 220);
+            if (p.shape === "rect") {
+              ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r);
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, p.r, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          });
+          t++;
+          if (t < 260) { frame = requestAnimationFrame(draw); }
+          else { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        }
+        draw();
       }
 
-      function App() {
-        const [noPosByQuestion, setNoPosByQuestion] = useState(() =>
-          questions.map(() => ({ x: 0, y: 0 }))
-        );
-        const [yesBurst, setYesBurst] = useState(false);
-        const [isPlaying, setIsPlaying] = useState(true);
-        const [surpriseOpen, setSurpriseOpen] = useState(false);
-        const [secondSurpriseOpen, setSecondSurpriseOpen] = useState(false);
-        const [parallax, setParallax] = useState({ x: 0, y: 0 });
-        const [selectedMemory, setSelectedMemory] = useState(null);
-        const typed = useTypewriter(apologyLines);
-        const iframeRef = useRef(null);
-        const { days, hours, minutes, seconds, totalHours } = useTimeSince("2025-11-11T00:00:00");
+      /* ─── Music ─── */
+      let isPlaying = true;
+      const ytFrame = document.getElementById("yt-audio");
+      const musicBtn = document.getElementById("music-toggle-btn");
+      musicBtn.onclick = () => {
+        if (isPlaying) {
+          ytFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', "*");
+          musicBtn.textContent = "▶ Play Music";
+        } else {
+          ytFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          musicBtn.textContent = "⏸ Pause Music";
+        }
+        isPlaying = !isPlaying;
+      };
 
-        useEffect(() => {
-          const onMove = (e) => {
-            const x = (e.clientX / window.innerWidth - 0.5) * 18;
-            const y = (e.clientY / window.innerHeight - 0.5) * 18;
-            setParallax({ x, y });
-          };
-          window.addEventListener("mousemove", onMove);
-          return () => window.removeEventListener("mousemove", onMove);
-        }, []);
-
-        const moveNoButton = (idx) => {
-          setNoPosByQuestion((prev) =>
-            prev.map((pos, i) =>
-              i === idx
-                ? { x: Math.floor(Math.random() * 160) - 80, y: Math.floor(Math.random() * 90) - 45 }
-                : pos
-            )
-          );
-        };
-
-        const onYesClick = () => {
-          setYesBurst(true);
-          setTimeout(() => setYesBurst(false), 2000);
-        };
-
-        const handleIframeLoad = () => {
-          if (iframeRef.current) {
-            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"setVolume","args":[35]}', '*');
-          }
-        };
-
-        const toggleMusic = () => {
-          if (!iframeRef.current) return;
-          if (isPlaying) {
-            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-            setIsPlaying(false);
-          } else {
-            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            setIsPlaying(true);
-          }
-        };
-
-        return html`
-          <main className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-[#fff6fb] via-white to-[#f3ebff] text-slate-800">
-            <div className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(circle_at_20%_15%,rgba(255,180,214,0.45),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(216,196,255,0.45),transparent_34%),radial-gradient(circle_at_50%_90%,rgba(255,210,235,0.4),transparent_36%)]"></div>
-            <${FloatingHearts} />
-            <iframe
-              ref=${iframeRef}
-              onLoad=${handleIframeLoad}
-              src="https://www.youtube.com/embed/cYOV5i85fsw?enablejsapi=1&version=3&playerapiid=ytplayer&autoplay=1&mute=0"
-              allow="autoplay; encrypted-media"
-              className="absolute -z-50 h-0 w-0 opacity-0"
-              title="youtube-audio"
-            ></iframe>
-
-            <section className="relative flex min-h-screen items-center justify-center px-6 py-16">
-              <${motion.div}
-                initial=${{ opacity: 0, y: 42 }}
-                animate=${{ opacity: 1, y: 0 }}
-                transition=${{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
-                style=${{ x: parallax.x * -0.7, y: parallax.y * -0.7 }}
-                className="relative mx-auto max-w-4xl"
-              >
-                <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-r from-pink-200/40 to-purple-200/45 blur-2xl"></div>
-                <div className="relative rounded-[2rem] border border-white/50 bg-white/55 p-9 text-center shadow-soft backdrop-blur-2xl md:p-14">
-                  <p className="mb-4 text-xs uppercase tracking-[0.28em] text-slate-500">For The Girl I Love</p>
-                  <h1 className="text-3xl font-semibold leading-tight text-slate-900 md:text-6xl">I messed up… and I know it hurt you.</h1>
-                  <p className="mx-auto mt-7 max-w-3xl whitespace-pre-line text-base leading-relaxed text-slate-700 md:text-lg">
-                    I’ve been thinking about what I said, and I regret it.
-                    You didn’t deserve that
-                    I just want a chance to say this properly.
-                  </p>
-                  <button onClick=${() => document.getElementById("memory-lane")?.scrollIntoView({ behavior: "smooth" })} className="mt-10 rounded-full bg-rose px-8 py-3.5 text-white shadow-glow transition hover:scale-105 hover:bg-pink-500">
-                    Please hear me out
-                  </button>
-                </div>
-              </${motion.div}>
-            </section>
-
-            <${motion.section} id="memory-lane" variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.2 }} className="mx-auto max-w-6xl px-6 py-20">
-              <div className="text-center">
-                <h2 className="text-3xl font-semibold text-slate-900 md:text-4xl">Memory Lane</h2>
-                <p className="mx-auto mt-4 max-w-2xl text-slate-600">Every photo reminds me of how much warmth you bring into my life, even across miles.</p>
-              </div>
-              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                ${photos.map(
-                  (photo, idx) =>
-                    html`<${MemoryCard}
-                      key=${photo}
-                      photo=${photo}
-                      caption=${captions[idx]}
-                      idx=${idx}
-                      onOpen=${(p, c) => setSelectedMemory({ photo: p, caption: c })}
-                    />`
-                )}
-              </div>
-            </${motion.section}>
-
-            <${motion.section} variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.25 }} className="px-6 py-20">
-              <${GlassPanel} className="mx-auto max-w-4xl p-8 md:p-12">
-                <h2 className="text-center text-3xl font-semibold text-slate-900 md:text-4xl">I know I hurt you</h2>
-                <pre className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-slate-700 md:text-lg">${typed}</pre>
-              </${GlassPanel}>
-            </${motion.section}>
-
-            <${motion.section} variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.25 }} className="px-6 py-20">
-              <${GlassPanel} className="mx-auto max-w-3xl bg-gradient-to-br from-white/70 to-[#fdf6ff]/70 p-8 text-center md:p-12">
-                <h2 className="text-3xl font-semibold text-slate-900">Can We Try Again?</h2>
-                <div className="mt-8 space-y-6">
-                  ${questions.map(
-                    (q, i) => html`
-                      <div key=${q} className="rounded-2xl border border-pink-100/80 bg-white/60 p-4 text-left">
-                        <p className="text-slate-700">${i + 1}. ${q}</p>
-                        <div className="relative mt-4 flex items-center gap-4">
-                          <${motion.button}
-                            whileTap=${{ scale: 0.95 }}
-                            whileHover=${{ scale: 1.08 }}
-                            onClick=${onYesClick}
-                            className="rounded-full bg-rose px-6 py-2.5 text-sm font-medium text-white shadow-glow"
-                          >
-                            Yes
-                          </${motion.button}>
-                          <${motion.button}
-                            animate=${{ x: noPosByQuestion[i].x, y: noPosByQuestion[i].y }}
-                            transition=${{ type: "spring", stiffness: 350, damping: 15 }}
-                            onMouseEnter=${() => moveNoButton(i)}
-                            className="rounded-full border border-pink-300 bg-white px-6 py-2.5 text-sm text-slate-700"
-                          >
-                            No
-                          </${motion.button}>
-                        </div>
-                      </div>
-                    `
-                  )}
-                </div>
-                <${AnimatePresence}>
-                  ${yesBurst &&
-                  html`<${motion.div} initial=${{ opacity: 0 }} animate=${{ opacity: 1 }} exit=${{ opacity: 0 }} className="pointer-events-none mt-8 flex justify-center gap-2 text-2xl">
-                    ${Array.from({ length: 18 }).map(
-                      (_, i) => html`<${motion.span}
-                        key=${i}
-                        initial=${{ y: 0, x: 0, opacity: 1, scale: 0.8 }}
-                        animate=${{ x: (i - 9) * 16, y: -30 - Math.abs(i - 9) * 3, opacity: 0, scale: 1.4 }}
-                        transition=${{ duration: 1.15, ease: "easeOut" }}
-                      >
-                        ${i % 2 ? "♥" : "✨"}
-                      </${motion.span}>`
-                    )}
-                  </${motion.div}>`}
-                </${AnimatePresence}>
-              </${GlassPanel}>
-            </${motion.section}>
-
-            <${motion.section} variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.35 }} className="px-6 py-12">
-              <${GlassPanel} className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-6 p-8 md:flex-row">
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-900 md:text-2xl">Our song, while you read</h3>
-                  <p className="mt-2 text-sm text-slate-600">Play or pause whenever you want.</p>
-                </div>
-                <button onClick=${toggleMusic} className="rounded-full bg-slate-900 px-6 py-3 text-white transition hover:scale-105">${isPlaying ? "Pause Music" : "Play Music"}</button>
-              </${GlassPanel}>
-            </${motion.section}>
-
-            <${motion.section} variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.35 }} className="px-6 py-8">
-              <${GlassPanel} className="mx-auto max-w-3xl p-8 text-center">
-                <p className="text-lg text-slate-700">Time since I met you</p>
-                <p className="mt-2 text-sm text-slate-500">Since 11 November 2025</p>
-                <p className="mt-3 text-2xl font-semibold text-slate-900 md:text-4xl">${days} days ${hours}h ${minutes}m ${seconds}s</p>
-                <p className="mt-2 text-sm text-slate-600">${totalHours} total hours of loving you</p>
-              </${GlassPanel}>
-            </${motion.section}>
-
-            <${motion.section} variants=${sectionVariant} initial="hidden" whileInView="show" viewport=${{ once: true, amount: 0.25 }} className="px-6 pb-24 pt-12">
-              <${GlassPanel} className="mx-auto max-w-3xl p-8 text-center md:p-12">
-                <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-700">
-                  No matter what happens, I’ll always choose you <br />
-                  I know I can’t undo what I said… but I don’t want one moment to erase everything we’ve built
-                </p>
-                <div className="mt-8 flex items-center justify-center gap-6">
-                  <button onClick=${() => setSurpriseOpen((v) => !v)} className="block text-5xl md:text-6xl text-rose transition hover:scale-110" aria-label="Hidden surprise one">${surpriseOpen ? "♥" : "♡"}</button>
-                  <button onClick=${() => setSecondSurpriseOpen((v) => !v)} className="block text-5xl md:text-6xl text-purple-500 transition hover:scale-110" aria-label="Hidden surprise two">${secondSurpriseOpen ? "♥" : "♡"}</button>
-                </div>
-                <${AnimatePresence}>
-                  ${surpriseOpen &&
-                  html`<${motion.p} initial=${{ opacity: 0, y: 8 }} animate=${{ opacity: 1, y: 0 }} exit=${{ opacity: 0, y: 8 }} className="mx-auto mt-4 max-w-xl rounded-2xl border border-pink-100 bg-pink-50/75 px-4 py-3 text-sm text-slate-700">
-                    I’m not asking you to forget everything. I’m asking for one honest chance to prove I can love you better than I argued with you.
-                  </${motion.p}>`}
-                </${AnimatePresence}>
-                <${AnimatePresence}>
-                  ${secondSurpriseOpen &&
-                  html`<${motion.p} initial=${{ opacity: 0, y: 8 }} animate=${{ opacity: 1, y: 0 }} exit=${{ opacity: 0, y: 8 }} className="mx-auto mt-3 max-w-xl rounded-2xl border border-purple-100 bg-purple-50/70 px-4 py-3 text-sm text-slate-700">
-                    If you give me this chance, I won’t waste it. I’ll listen better, speak softer, and love you in the way you deserve.
-                  </${motion.p}>`}
-                </${AnimatePresence}>
-              </${GlassPanel}>
-            </${motion.section}>
-
-            <${AnimatePresence}>
-              ${selectedMemory &&
-              html`
-                <${motion.div}
-                  initial=${{ opacity: 0 }}
-                  animate=${{ opacity: 1 }}
-                  exit=${{ opacity: 0 }}
-                  onClick=${() => setSelectedMemory(null)}
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 px-4 py-8 backdrop-blur-sm"
-                >
-                  <${motion.div}
-                    initial=${{ opacity: 0, scale: 0.92, y: 25 }}
-                    animate=${{ opacity: 1, scale: 1, y: 0 }}
-                    exit=${{ opacity: 0, scale: 0.95, y: 20 }}
-                    transition=${{ duration: 0.28 }}
-                    onClick=${(e) => e.stopPropagation()}
-                    className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-white/35 bg-white/90 shadow-soft"
-                  >
-                    <button
-                      onClick=${() => setSelectedMemory(null)}
-                      className="absolute right-3 top-3 z-10 rounded-full bg-white/85 px-3 py-1 text-sm text-slate-700"
-                    >
-                      Close
-                    </button>
-                    <img
-                      src=${encodeURI(selectedMemory.photo)}
-                      alt=${selectedMemory.caption}
-                      className="max-h-[70vh] w-full bg-slate-100 object-contain"
-                    />
-                    <p className="px-5 py-4 text-center text-base text-slate-700 md:text-lg">${selectedMemory.caption}</p>
-                  </${motion.div}>
-                </${motion.div}>
-              `}
-            </${AnimatePresence}>
-          </main>
-        `;
+      /* ─── Timer ─── */
+      function updateTimer() {
+        const start = new Date("2025-11-11T00:00:00").getTime();
+        const diff = Math.max(Date.now() - start, 0);
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const min = Math.floor((diff % 3600000) / 60000);
+        const sec = Math.floor((diff % 60000) / 1000);
+        const totalH = Math.floor(diff / 3600000);
+        document.getElementById("t-days").textContent = days;
+        document.getElementById("t-hours").textContent = String(hours).padStart(2, "0");
+        document.getElementById("t-min").textContent = String(min).padStart(2, "0");
+        document.getElementById("t-sec").textContent = String(sec).padStart(2, "0");
+        document.getElementById("t-total").textContent = `${totalH.toLocaleString()} total hours of loving you`;
       }
+      updateTimer();
+      setInterval(updateTimer, 1000);
 
-      createRoot(document.getElementById("root")).render(html`<${App} />`);
+      /* ─── Heart toggles ─── */
+      const heartStates = { 1: false, 2: false };
+      function toggleHeart(n) {
+        heartStates[n] = !heartStates[n];
+        const btn = document.getElementById(`heart${n}`);
+        btn.textContent = heartStates[n] ? "♥" : "♡";
+        btn.classList.toggle("active", heartStates[n]);
+        const s = document.getElementById(`surprise${n}`);
+        s.style.display = heartStates[n] ? "block" : "none";
+        if (heartStates[n]) {
+          s.style.animation = "none";
+          s.offsetHeight;
+          s.style.animation = "revealUp .45s cubic-bezier(0.23,1,0.32,1) forwards";
+        }
+      }
     </script>
-  </head>
-  <body class="bg-white">
-    <div id="root"></div>
   </body>
 </html>
