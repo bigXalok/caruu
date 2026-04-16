@@ -334,13 +334,8 @@
     <!-- Floating hearts injected by JS -->
     <div id="hearts-container"></div>
 
-    <!-- Hidden YouTube audio -->
-    <iframe id="yt-audio"
-      src="https://www.youtube.com/embed/cYOV5i85fsw?enablejsapi=1&version=3&autoplay=1&mute=0"
-      allow="autoplay; encrypted-media"
-      style="position:absolute;width:0;height:0;z-index:-50;opacity:0"
-      title="youtube-audio">
-    </iframe>
+    <!-- Hidden local audio -->
+    <audio id="bg-audio" loop src="audio/JVKE - oh to be loved - JVKE (128k).mp3" preload="auto"></audio>
 
     <!-- ════════════════════ HERO ════════════════════ -->
     <section class="relative flex min-h-screen items-center justify-center px-6 py-16">
@@ -410,7 +405,7 @@
           <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:400;color:#1a0a14">Our song, while you read</h3>
           <p style="color:#7a5a6a;margin-top:.4rem;font-size:.9rem">Play or pause whenever you want.</p>
         </div>
-        <button class="music-btn" id="music-toggle-btn">⏸ Pause Music</button>
+        <button class="music-btn" id="music-toggle-btn">▶ Play Music</button>
       </div>
     </section>
 
@@ -798,32 +793,16 @@
       }
 
       /* ─── Music ─── */
-      let isPlaying = true;
-      const ytFrame = document.getElementById("yt-audio");
+      let isPlaying = false;
+      const bgAudio = document.getElementById("bg-audio");
       const musicBtn = document.getElementById("music-toggle-btn");
 
-      // Bypassing modern browser autoplay restrictions:
-      // We wait for the user's very first click anywhere on the website to kickstart the audio.
-      function startBackgroundMusic() {
-        ytFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
-        isPlaying = true;
-        musicBtn.textContent = "⏸ Pause Music";
-        document.removeEventListener("click", startBackgroundMusic);
-        document.removeEventListener("touchstart", startBackgroundMusic);
-      }
-      document.addEventListener("click", startBackgroundMusic);
-      document.addEventListener("touchstart", startBackgroundMusic);
-
-      musicBtn.onclick = (e) => {
-        e.stopPropagation(); // Stop the global first-click listener from firing
-        document.removeEventListener("click", startBackgroundMusic);
-        document.removeEventListener("touchstart", startBackgroundMusic);
-        
+      musicBtn.onclick = () => {
         if (isPlaying) {
-          ytFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', "*");
+          bgAudio.pause();
           musicBtn.textContent = "▶ Play Music";
         } else {
-          ytFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          bgAudio.play();
           musicBtn.textContent = "⏸ Pause Music";
         }
         isPlaying = !isPlaying;
